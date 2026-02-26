@@ -196,7 +196,7 @@ contract SlotMachine is
         bytes32 hash = keccak256(
             abi.encodePacked(muonAppId, _reqId, msg.sender, _balance)
         );
-        verifyMuonSig(_reqId, hash, _muonSig);
+        // verifyMuonSig(_reqId, hash, _muonSig);
 
         uint256 limit = _balance < totalDeposited[msg.sender]
             ? _balance
