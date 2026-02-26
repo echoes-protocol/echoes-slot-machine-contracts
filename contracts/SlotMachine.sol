@@ -78,6 +78,12 @@ contract SlotMachine is
     /// @notice Map a txId to its Deposit struct
     mapping(uint256 => Deposit) public deposits;
 
+    uint256 public muonAppId;
+
+    IMuonClient.PublicKey public muonPublicKey;
+
+    IMuonClient public muon;
+
     mapping(address => uint256) public totalDeposited;
 
     /* ─────────────────────────── Initialization ─────────────────────────── */
@@ -168,9 +174,16 @@ contract SlotMachine is
 
     function withdraw(
         uint256 _amount,
-        uint256 _balance
+        uint256 _balance,
+        bytes calldata _reqId,
+        IMuonClient.SchnorrSign calldata _muonSig
     ) external whenNotPaused {
         require(_amount > 0, "Invalid _amount");
+
+        bytes32 hash = keccak256(
+            abi.encodePacked(muonAppId, _reqId, msg.sender, _balance)
+        );
+        verifyMuonSig(_reqId, hash, _muonSig);
 
         uint256 limit = _balance < totalDeposited[msg.sender]
             ? _balance
@@ -204,6 +217,22 @@ contract SlotMachine is
         _unpause();
     }
 
+    function setMuonAppId(uint256 _muonAppId) external onlyRole(ADMIN_ROLE) {
+        muonAppId = _muonAppId;
+    }
+
+    function setMuonAddress(
+        address _muonAddress
+    ) external onlyRole(ADMIN_ROLE) {
+        muon = IMuonClient(_muonAddress);
+    }
+
+    function setMuonPubKey(
+        IMuonClient.PublicKey memory _muonPublicKey
+    ) external onlyRole(ADMIN_ROLE) {
+        muonPublicKey = _muonPublicKey;
+    }
+
     /**
      * @notice Withdraw ETH or ERC20 tokens from the contract to a specified recipient.
      * @dev Only callable by an account with ADMIN_ROLE. If `_tokenAddr` is address(0) an ETH transfer is performed,
@@ -224,5 +253,19 @@ contract SlotMachine is
             IERC20(_tokenAddr).safeTransfer(_to, _amount);
         }
         emit AdminWithdraw(msg.sender, _amount, _to, _tokenAddr);
+    }
+
+    function verifyMuonSig(
+        bytes calldata reqId,
+        bytes32 hash,
+        IMuonClient.SchnorrSign calldata sign
+    ) public {
+        bool verified = muon.muonVerify(
+            reqId,
+            uint256(hash),
+            sign,
+            muonPublicKey
+        );
+        require(verified, "Invalid Muon Signature!");
     }
 }
