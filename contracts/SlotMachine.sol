@@ -8,6 +8,7 @@ import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
 import {ISlotMachine} from "./interfaces/ISlotMachine.sol";
+import "./interfaces/IMuonClient.sol";
 
 /**
  * @title SlotMachine
@@ -76,6 +77,8 @@ contract SlotMachine is
 
     /// @notice Map a txId to its Deposit struct
     mapping(uint256 => Deposit) public deposits;
+
+    mapping(address => uint256) public totalDeposited;
 
     /* ─────────────────────────── Initialization ─────────────────────────── */
 
@@ -158,7 +161,31 @@ contract SlotMachine is
             dType: _dType
         });
 
+        totalDeposited[msg.sender] += _amount;
+
         emit Deposited(lastTxId, msg.sender, _amount, token, _dType);
+    }
+
+    function withdraw(
+        uint256 _amount,
+        uint256 _balance
+    ) external whenNotPaused {
+        require(_amount > 0, "Invalid _amount");
+
+        uint256 limit = _balance < totalDeposited[msg.sender]
+            ? _balance
+            : totalDeposited[msg.sender];
+        require(_amount <= limit, "Amount exceeds allowed limit");
+
+        totalDeposited[msg.sender] -= _amount;
+
+        if (token == address(0)) {
+            payable(msg.sender).transfer(_amount);
+        } else {
+            IERC20(token).safeTransfer(msg.sender, _amount);
+        }
+
+        emit Withdrawn(msg.sender, _amount, token);
     }
 
     /**

@@ -45,4 +45,6 @@ interface ISlotMachine {
 
     /// @notice Thrown when attempting to use a zero address
     error ZeroAddress();
+
+    event Withdrawn(address indexed user, uint256 amount, address token);
 }
