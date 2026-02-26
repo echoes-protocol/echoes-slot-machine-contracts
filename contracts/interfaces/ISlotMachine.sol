@@ -41,10 +41,17 @@ interface ISlotMachine {
         address tokenAddress
     );
 
+    /**
+     * @notice Emitted when a user withdraws funds from the contract.
+     * @dev Indicates a successful withdrawal operation. For native ETH withdrawals, `token` will be address(0).
+     * @param user The address of the user who received the withdrawn funds (indexed).
+     * @param amount The amount withdrawn (in wei for ETH or in token units for ERC20).
+     * @param token The token contract address withdrawn; use address(0) to denote native ETH.
+     */
+    event Withdrawn(address indexed user, uint256 amount, address token);
+
     // Custom Errors
 
     /// @notice Thrown when attempting to use a zero address
     error ZeroAddress();
-
-    event Withdrawn(address indexed user, uint256 amount, address token);
 }

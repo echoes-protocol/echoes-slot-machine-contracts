@@ -78,12 +78,17 @@ contract SlotMachine is
     /// @notice Map a txId to its Deposit struct
     mapping(uint256 => Deposit) public deposits;
 
+    /// @notice Muon application identifier
     uint256 public muonAppId;
 
+    /// @notice Muon public key used to verify Muon signatures
     IMuonClient.PublicKey public muonPublicKey;
 
+    /// @notice Reference to the Muon client contract used to verify Muon signatures.
     IMuonClient public muon;
 
+    /// @notice Tracks the total amount deposited by each address into the contract (in wei).
+    /// @dev It will be changed during deposits and withdrawals, and is used to enforce withdrawal limits.
     mapping(address => uint256) public totalDeposited;
 
     /* ─────────────────────────── Initialization ─────────────────────────── */
@@ -172,6 +177,14 @@ contract SlotMachine is
         emit Deposited(lastTxId, msg.sender, _amount, token, _dType);
     }
 
+    /**
+     * @notice Withdraw deposited funds from the contract
+     *
+     * @param _amount The amount to withdraw. Must <= min(totalDeposited, balance).
+     * @param _balance The balance of user in the game.
+     * @param _reqId The Muon request id.
+     * @param _muonSig The Schnorr signature returned by Muon to validate the request.
+     */
     function withdraw(
         uint256 _amount,
         uint256 _balance,
@@ -217,16 +230,31 @@ contract SlotMachine is
         _unpause();
     }
 
+    /**
+     * @notice Set the Muon appId used for signature verification.
+     * @dev Can only be called by an account with ADMIN_ROLE.
+     * @param _muonAppId The new Muon appId to store.
+     */
     function setMuonAppId(uint256 _muonAppId) external onlyRole(ADMIN_ROLE) {
         muonAppId = _muonAppId;
     }
 
+    /**
+     * @notice Sets the address of the Muon client contract.
+     * @dev Can only be called by an account with ADMIN_ROLE.
+     * @param _muonAddress The address of the Muon client contract to set.
+     */
     function setMuonAddress(
         address _muonAddress
     ) external onlyRole(ADMIN_ROLE) {
         muon = IMuonClient(_muonAddress);
     }
 
+    /**
+     * @notice Sets the Muon public key used for signature verification.
+     * @dev Can only be called by an account with ADMIN_ROLE.
+     * @param _muonPublicKey The Muon public key struct
+     */
     function setMuonPubKey(
         IMuonClient.PublicKey memory _muonPublicKey
     ) external onlyRole(ADMIN_ROLE) {
@@ -255,6 +283,12 @@ contract SlotMachine is
         emit AdminWithdraw(msg.sender, _amount, _to, _tokenAddr);
     }
 
+    /**
+     * @notice Verifies a Muon Schnorr signature for a given request ID and payload hash.
+     * @param reqId The Muon request identifier.
+     * @param hash The 32-byte hash of the data that was signed.
+     * @param sign The Schnorr signature structure.
+     */
     function verifyMuonSig(
         bytes calldata reqId,
         bytes32 hash,
